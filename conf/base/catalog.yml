@@ -2,3 +2,17 @@
 #
 # Documentation for this file format can be found in "The Data Catalog"
 # Link: https://docs.kedro.org/en/stable/data/data_catalog.html
+
+test_data_final:
+  type: pickle.PickleDataset
+  filepath: data/01_raw/test_data_final.pkl
+  backend: joblib
+
+train_data_final:
+  type: pickle.PickleDataset
+  filepath: data/01_raw/train_data_final.pkl
+  backend: pickle
+
+metrics:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/metrics.json
