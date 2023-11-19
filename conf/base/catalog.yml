@@ -14,3 +14,96 @@ train_data_final:
 metrics:
   type: tracking.MetricsDataSet
   filepath: data/09_tracking/metrics.json
+
+bertmodel:
+  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+  data_set:
+    type: pickle.PickleDataSet
+    filepath: data/06_models/bertmodel.pkl
+
+safeaeromodel:
+  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+  data_set:
+    type: pickle.PickleDataSet
+    filepath: data/06_models/safeaeromodel.pkl
+
+# PARAMETERS VERSIONNING IS BUILT-IN when you CALL params:parameter_in_parameters.yml
+# DATA VERSIONNING IN KEDRO MLFLOW
+# my_dataset_to_version:
+#    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#   data_set:
+#        type: pandas.CSVDataSet  # or any valid kedro DataSet
+#        filepath: /path/to/a/LOCAL/destination/file.csv # must be a local file, wherever you want to log the data in the end
+#
+
+#
+# my_dataset_to_version:
+#    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#    data_set:
+#        type: pandas.CSVDataSet  # or any valid kedro DataSet
+#        filepath: /path/to/a/local/destination/file.csv
+#        load_args:
+#            sep: ;
+#        save_args:
+#            sep: ;
+#        # ... any other valid arguments for data_set
+
+# my_sklearn_model:
+#    type: kedro_mlflow.io.models.MlflowModelLoggerDataSet
+#   flavor: mlflow.sklearn
+
+#my_model:
+#    type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+#    flavor: mlflow.sklearn
+#    filepath: path/to/where/you/want/model
+#    version: <valid-kedro-version>
+
+#my_model:
+#    type: kedro_mlflow.io.models.MlflowModelLoggerDataSet
+#    flavor: "mlflow.sklearn"
+#    run_id: <the-model-run-id>,
+#    save_args:
+#        conda_env:
+#            python: "3.10.0"
+#            dependencies:
+#                - "kedro==0.18.11"
+#
+#
+#
+#sklearn_model:
+#    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#    data_set:
+#        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+#        flavor: mlflow.sklearn
+#        filepath: data/06_models/sklearn_model
+#
+
+sklearn_model:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.sklearn
+        filepath: data/06_models/sklearn_model
+
+my_model_metric:
+    type: kedro_mlflow.io.metrics.MlflowMetricDataSet
+    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
+    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be sued (here "my_model_metric")
+    load_args:
+        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
+    save_args:
+        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
+        mode: append #  OPTIONAL: likely better than the default "overwrite". Will be ignored if "step" is provided.
+
+my_model_metric:
+    type: kedro_mlflow.io.metrics.MlflowMetricHistoryDataSet
+    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
+    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be used (here "my_model_metric")
+    load_args:
+        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
+    save_args:
+        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
+
+my_model_metrics:
+    type: kedro_mlflow.io.metrics.MlflowMetricsDataSet
+    prefix: foo

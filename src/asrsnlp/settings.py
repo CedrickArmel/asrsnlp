@@ -1,23 +1,32 @@
 """Project settings. There is no need to edit this file unless you want to change values
 from the Kedro defaults. For further information, including these default values, see
-https://kedro.readthedocs.io/en/stable/kedro_project_setup/settings.html."""
+https://docs.kedro.org/en/stable/kedro_project_setup/settings.html."""
 
 # Instantiated project hooks.
 # For example, after creating a hooks.py and defining a ProjectHooks class there, do
-# from asrsnlp.hooks import ProjectHooks
+# from test.hooks import ProjectHooks
+
 # Hooks are executed in a Last-In-First-Out (LIFO) order.
 # HOOKS = (ProjectHooks(),)
+from kedro_mlflow.framework.hooks import MlflowHook
+
+HOOKS = (MlflowHook(),)
 
 # Installed plugins for which to disable hook auto-registration.
 # DISABLE_HOOKS_FOR_PLUGINS = ("kedro-viz",)
 
 # Class that manages storing KedroSession data.
-# from kedro.framework.session.store import BaseSessionStore
+from kedro.framework.session.store import BaseSessionStore
 # SESSION_STORE_CLASS = BaseSessionStore
 # Keyword arguments to pass to the `SESSION_STORE_CLASS` constructor.
-# SESSION_STORE_ARGS = {
-#     "path": "./sessions"
-# }
+from kedro_viz.integrations.kedro.sqlite_store import SQLiteStore
+from pathlib import Path
+
+SESSION_STORE_CLASS = SQLiteStore
+SESSION_STORE_ARGS = {
+    "path": str(Path(__file__).parents[2] / "data/10_sessions"),
+    "remote_path": "gs://ml-project-bucket-20231014/asrsnlp/kedro",
+}
 
 # Directory that holds configuration.
 # CONF_SOURCE = "conf"
