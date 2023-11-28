@@ -1,0 +1,26 @@
+# This is a boilerplate parameters config generated for pipeline 'train_bert'
+# using Kedro 0.18.14.
+#
+# Documentation for this file format can be found in "Parameters"
+# Link: https://docs.kedro.org/en/0.18.14/configuration/parameters.html
+
+train_params:
+  batch_size: 8
+  shuffle: True
+  num_workers: 8
+
+train_sample:
+  datasize: 0.0001
+
+model_params:
+  name: bert-base-uncased
+  llayer:
+    - 768
+    - 15
+  doratio: 0.3
+  max_len: 200
+  learningrate: 10e-5
+  epochs: 1
+
+# 'bert-base-uncased'
+# "NASA-AIML/MIKA_SafeAeroBERT"

@@ -1,6 +1,6 @@
-artifact_location: file:///home/ensai/dev/asrsnlp/mlruns/0
-creation_time: 1699953718206
+artifact_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/0
+creation_time: 1701013633036
 experiment_id: '0'
-last_update_time: 1699953718206
+last_update_time: 1701013633036
 lifecycle_stage: active
 name: Default
