@@ -15,9 +15,11 @@ def drop_useless(**kwargs) -> None:
     Args:
         data (str): Name of the dataset as defined in the catalog
     """
+    filesuffix = ['raw', 'int', 'prm', 'fea', 'moi', 'mod', 'moo', 'rep', 'tra', 'ses']
     logger = logging.getLogger(__name__)
     for name, item in kwargs.items():
-        filename = str(name + "_prim.parquet")
+        nameroot = name[:-4] if name[-3:] in filesuffix else name
+        filename = str(nameroot + "_prm.parquet")
         data = item[['Narrative', 'Anomaly', 'Synopsis']]
         try:
             logger.info("Storing the new dataset from %s in parquet format.", filename)

@@ -25,7 +25,7 @@ from pathlib import Path
 SESSION_STORE_CLASS = SQLiteStore
 SESSION_STORE_ARGS = {
     "path": str(Path(__file__).parents[2] / "data/10_sessions"),
-    "remote_path": "gs://ml-project-bucket-20231014/asrsnlp/kedro",
+    "remote_path": "gs://ml-project-bucket-20231126/asrsnlp/kedro",
 }
 
 # Directory that holds configuration.

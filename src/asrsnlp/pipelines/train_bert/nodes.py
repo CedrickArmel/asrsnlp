@@ -2,16 +2,23 @@
 This is a boilerplate pipeline 'train_bert'
 generated using Kedro 0.18.14
 """
+from sklearn import metrics
+from torch import nn, cuda
+from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
+from transformers import AutoTokenizer, AutoModel
+from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
+from kedro_mlflow.io.artifacts import MlflowArtifactDataSet
+from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
+from typing import Union
+import mlflow
+import random
 import os
 import logging
 import torch
 import pandas as pd
 import transformers as hf
 import numpy as np
-from sklearn import metrics
-from torch import nn, cuda
-from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel
+import torch_xla.core.xla_model as xm
 
 
 class CustomDataset(Dataset):
@@ -113,8 +120,10 @@ class ModelClass(torch.nn.Module):
         return output
 
 
-# Think about generique later that suport both maskedLM and base
-def import_model(model_name: str, lastlayer: tuple, doratio: float):
+# Think about generic later that suport both maskedLM and base
+def import_model(model_name: str,
+                 lastlayer: Union[tuple, list],
+                 doratio: float):
     """Returns the models to train form hugging face
 
     Args:
@@ -125,36 +134,58 @@ def import_model(model_name: str, lastlayer: tuple, doratio: float):
     Returns:
         the model and its tokenizer
     """
+    llayer = tuple(lastlayer) if isinstance(lastlayer, list) else lastlayer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = ModelClass(modelname=model_name,
-                       lastlayer=lastlayer,
+                       lastlayer=llayer,
                        dropoutratio=doratio)
     return tokenizer, model
 
 
 def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
-           max_len: int, trainparams: dict):
+           max_len: int, trainparams: dict, sample: float = 1.0):
     """Tokenizes and Loads the data in a way suitable for torch and training/evaluation.
 
     Args:
-        data (pd.DataFrame): data to load for training
+        data (pd.DataFrame): Data to load for training
         tokenizer (hf.AutoTokenizer): Model tokenizer
-        modelparams (dict): models params. Should contain 'max_len' key
+        max_len (int): Number of tokens to pass to the model. Sentences of higher token 
+        number are cut.
         trainparams (dict): Should contain batch_size, shuffle, num_workers
+        sample (float, optional): Size of the subset to load. Defaults to 1.0
 
     Returns:
         Tokenized data for training/eval
     """
     dataset = CustomDataset(data, tokenizer, max_len)
-    loadeddata = DataLoader(dataset, **trainparams)
+    if sample > 0 and sample < 1:
+        datasize = data.shape[0]
+        sample_size = int(sample * datasize)
+        subset_idx = np.random.random_integers(low=0,
+                                               high=datasize,
+                                               size=sample_size).tolist()
+        randomsampler = SubsetRandomSampler(subset_idx)
+        trainparams['shuffle'] = False
+        loadeddata = DataLoader(dataset, **trainparams, sampler=randomsampler)
+    else :
+        loadeddata = DataLoader(dataset, **trainparams)
+
     return loadeddata
 
 
-def get_device():
+def get_cuda_device():
     """return the device available
     """
     device = 'cuda' if cuda.is_available() else 'cpu'
+    if device == 'cuda':
+        torch.cuda.empty_cache()
     return device
+
+
+def get_xla_device():
+    """return available XLA device
+    """
+    return xm.xla_device()
 
 
 def get_loss():
@@ -168,70 +199,91 @@ def get_optimizer(mymodel, learningrate: float):
     return torch.optim.Adam(params=mymodel.parameters(), lr=learningrate)
 
 
-def train_model(mymodel,
-                loss_func,
-                optimizer,
-                epochs: int,
-                dataloader,
-                device) :
-    """Train de model
-
-    Args:
-        mymodel (_type_): _description_
-        loss_func (_type_): _description_
-        optimizer (_type_): _description_
-        epochs (int): _description_
-        dataloader (_type_): _description_
-        device (_type_): _description_
+def train_model(**kwargs):
+    """Train de model.
+    kwargs:
+        Args:
+            mymodel (_type_): _description_
+            loss_func (_type_): _description_
+            optimizer (_type_): _description_
+            epochs (int): _description_
+            dataloader (_type_): _description_
+            device (_type_): _description_        
 
     Returns:
         _type_: _description_
     """
-    model = mymodel
+    for name, item in kwargs.items():
+        if "loss" in name.lower():
+            loss_func = item
+        if "optim" in name.lower():
+            optimizer = item
+        if "epoch" in name.lower():
+            epochs = item
+        if "device" in name.lower():
+            device = item
+        if isinstance(item, DataLoader):
+            dataloader = item
+        if isinstance(item, torch.nn.Module) and "loss" not in name.lower():
+            modelname = name + "model"
+            model = item
+    modelsaver = MlflowModelSaverDataSet(filepath=os.path.join("data/06_models",
+                                                               modelname),
+                                         flavor='mlflow.pytorch')
+    epochhistory = MlflowMetricHistoryDataSet(key="epochs_loss",
+                                              save_args={"mode": "list"})
     model.to(device)
     epoch = 1
-    while epoch <= epochs :
-        model.train()  # tell PyTorch i'm training the model
-        size = len(dataloader.dataset)
-        for batch, data in enumerate(dataloader, 0):
-            ids = data['ids'].to(device, dtype=torch.long)
-            mask = data['mask'].to(device, dtype=torch.long)
-            token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
-            targets = data['targets'].to(device, dtype=torch.float)
-            outputs = model(ids, mask, token_type_ids)
-            optimizer.zero_grad()
-            loss = loss_func(outputs, targets)
-            if batch % 1000 == 0:
-                current = (batch + 1) * len(targets)
-                print(f"Epoch: {epoch}, loss: {loss.item():>7f}  [{current:>5d}/{size:>5d}]")
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    losshistory = {}
+    while epoch <= epochs:
+        with mlflow.start_run(nested=True,
+                              run_name=f"epoch_{epoch}"):
+            model.train()
+            for _, data in enumerate(dataloader, 0):
+                ids = data['ids'].to(device, dtype=torch.long)
+                mask = data['mask'].to(device, dtype=torch.long)
+                token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
+                targets = data['targets'].to(device, dtype=torch.float)
+                outputs = model(ids, mask, token_type_ids)
+                optimizer.zero_grad()
+                loss = loss_func(outputs, targets)
+                losshistory[f"epoch_{epoch}"] = loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            modelsaver.save(model)
+#           Ajouter ici le mlflow model logger
         epoch += 1
-    return model
+    epochhistory.save(losshistory.values())
+    return model, {modelname: {"loss": losshistory}}
 
 
-def eval_pt_model(mymodel,
-                  epochs,
-                  testingloader,
-                  device):
-    """Evaluate the model
-
-    Args:
-        mymodel (_type_): _description_
-        epochs (_type_): _description_
-        testingloader (_type_): _description_
-        device (_type_): _description_
+def eval_pt_model(**kwargs):
+    """Evaluate the model.
+    kwargs:
+        Args:
+            mymodel (_type_): _description_
+            testingloader (_type_): _description_
+            device (_type_): _description_
+    Returns:
+        _type_: _description_
     """
-    model = mymodel
+    for name, item in kwargs.items():
+        if isinstance(item, torch.nn.Module):
+            model = item
+            modelname = name
+        if isinstance(item, DataLoader):
+            dataloader = item
+        if "device" in name.lower():
+            device = item
     model.to(device)
-    epoch = 1
-    while epoch <= epochs :
-        model.eval()
-        fin_targets = []
-        fin_outputs = []
+    model.eval()
+    fin_targets = []
+    fin_outputs = []
+    with mlflow.start_run(nested=True,
+                          run_name=f"eval_{modelname}"):
         with torch.no_grad():
-            for _, data in enumerate(testingloader, 0):
+            for _, data in enumerate(dataloader, 0):
                 ids = data['ids'].to(device, dtype=torch.long)
                 mask = data['mask'].to(device, dtype=torch.long)
                 token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
@@ -241,11 +293,10 @@ def eval_pt_model(mymodel,
                 fin_outputs.extend(torch.sigmoid(outputs).cpu()
                                    .detach().numpy().tolist())
         fin_outputs = np.array(fin_outputs) >= 0.5
-        accuracy = metrics.accuracy_score(fin_targets, outputs)
-        f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
-        f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
-        print(f"Accuracy Score = {accuracy}")
-        print(f"F1 Score (Micro) = {f1_score_micro}")
-        print(f"F1 Score (Macro) = {f1_score_macro}")
-        epoch += 1
-
+        acc = metrics.accuracy_score(fin_targets, outputs)
+        f1_mic = metrics.f1_score(targets, outputs, average='micro')
+        f1_mac = metrics.f1_score(targets, outputs, average='macro')
+        evalres = dict(accuracy=acc,
+                       f1_score_micro=f1_mic,
+                       f1_score_macro=f1_mac)
+    return evalres

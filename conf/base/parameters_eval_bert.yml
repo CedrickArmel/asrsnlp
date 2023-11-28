@@ -9,3 +9,6 @@ eval_params:
   batch_size: 4
   shuffle: True
   num_workers: 8
+
+eval_sample:
+  datasize: 1.0

@@ -3,29 +3,70 @@
 # Documentation for this file format can be found in "The Data Catalog"
 # Link: https://docs.kedro.org/en/stable/data/data_catalog.html
 
-test_data_final:
-  type: pandas.ParquetDataset
-  filepath: data/02_intermediate/test_data_final.parquet
-
-train_data_final:
-  type: pandas.ParquetDataset
-  filepath: data/02_intermediate/train_data_final.parquet
-
-metrics:
+train_metrics:
   type: tracking.MetricsDataSet
-  filepath: data/09_tracking/metrics.json
+  filepath: data/09_tracking/train_metrics.json
+
+eval_metrics:
+    type: kedro_mlflow.io.metrics.MlflowMetricsDataSet
+
+test_data_int:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/test_data_int.parquet
+
+train_data_int:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/train_data_int.parquet
+
+test_data_prm:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/test_data_prm.parquet
+
+train_data_prm:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/train_data_prm.parquet
+
+test_cleaned_fea:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: pandas.ParquetDataset
+        filepath: data/04_feature/test_cleaned_fea.parquet
+
+train_cleaned_fea:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: pandas.ParquetDataset
+        filepath: data/04_feature/train_cleaned_fea.parquet
 
 bertmodel:
-  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-  data_set:
-    type: pickle.PickleDataSet
-    filepath: data/06_models/bertmodel.pkl
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/bertmodel
 
-safeaeromodel:
-  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-  data_set:
-    type: pickle.PickleDataSet
-    filepath: data/06_models/safeaeromodel.pkl
+#bertmetrics:
+#    type: kedro_mlflow.io.metrics.MlflowMetricDataSet
+#    key: bertmetrics
+#    save_args:
+#        mode: append #  OPTIONAL: likely better than the default "overwrite". Will be ignored if "step" is provided.
+
+
+#metrics:
+#  type: tracking.MetricsDataSet
+#  filepath: data/09_tracking/metrics.json
+#
+#bertmodel:
+#  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#  data_set:
+#    type: pickle.PickleDataSet
+#    filepath: data/06_models/bertmodel.pkl
+
+#safeaeromodel:
+#  type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#  data_set:
+#    type: pickle.PickleDataSet
+#    filepath: data/06_models/safeaeromodel.pkl
 
 # PARAMETERS VERSIONNING IS BUILT-IN when you CALL params:parameter_in_parameters.yml
 # DATA VERSIONNING IN KEDRO MLFLOW
@@ -78,32 +119,32 @@ safeaeromodel:
 #        filepath: data/06_models/sklearn_model
 #
 
-sklearn_model:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.sklearn
-        filepath: data/06_models/sklearn_model
+#sklearn_model:
+#    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+#    data_set:
+#        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+#        flavor: mlflow.sklearn
+#        filepath: data/06_models/sklearn_model
 
-my_model_metric:
-    type: kedro_mlflow.io.metrics.MlflowMetricDataSet
-    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
-    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be sued (here "my_model_metric")
-    load_args:
-        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
-    save_args:
-        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
-        mode: append #  OPTIONAL: likely better than the default "overwrite". Will be ignored if "step" is provided.
+#my_model_metric:
+#    type: kedro_mlflow.io.metrics.MlflowMetricDataSet
+#    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
+#    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be sued (here "my_model_metric")
+#    load_args:
+#        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
+#    save_args:
+#        step: ... # OPTIONAL: likely not provided, unless you have a very good reason to do so
+#        mode: append #  OPTIONAL: likely better than the default "overwrite". Will be ignored if "step" is provided.
 
-my_model_metric:
-    type: kedro_mlflow.io.metrics.MlflowMetricHistoryDataSet
-    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
-    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be used (here "my_model_metric")
-    load_args:
-        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
-    save_args:
-        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
+#my_model_metric:
+#    type: kedro_mlflow.io.metrics.MlflowMetricHistoryDataSet
+#    run_id: 123456 # OPTIONAL, you should likely let it empty to log in the current run
+#    key: my_awesome_name # OPTIONAL: if not provided, the dataset name will be used (here "my_model_metric")
+#    load_args:
+#        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
+#    save_args:
+#        mode: ... # OPTIONAL: "list" by default, one of {"list", "dict", "history"}
 
-my_model_metrics:
-    type: kedro_mlflow.io.metrics.MlflowMetricsDataSet
-    prefix: foo
+#my_model_metrics:
+#    type: kedro_mlflow.io.metrics.MlflowMetricsDataSet
+#    prefix: foo

@@ -22,6 +22,6 @@ def mapping(inputs: list[str]) -> dict[str, str]:
 
 def create_pipeline(**kwargs) -> Pipeline:
     return pipeline([node(func=nodes.drop_useless,
-                          inputs=mapping(["test_data_final", "train_data_final"]),
+                          inputs=mapping(["test_data_int", "train_data_int"]),
                           outputs=None,
-                          name="Drop useless colums")])
+                          name="to_primary_layer")])

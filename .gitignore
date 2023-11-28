@@ -1,6 +1,9 @@
 ##########################
 # KEDRO PROJECT
 
+# ignore confidential resources
+papers/sensitive/*
+
 # ignore all local configuration
 conf/local/**
 !conf/local/.gitkeep
