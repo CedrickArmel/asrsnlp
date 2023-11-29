@@ -3,13 +3,32 @@
 # Documentation for this file format can be found in "The Data Catalog"
 # Link: https://docs.kedro.org/en/stable/data/data_catalog.html
 
-train_metrics:
+# METRICS TRACKING
+bert_metrics:
   type: tracking.MetricsDataSet
-  filepath: data/09_tracking/train_metrics.json
+  filepath: data/09_tracking/bert_metrics.json
 
-eval_metrics:
-    type: kedro_mlflow.io.metrics.MlflowMetricsDataSet
+bert_metrics_gpu:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/bert_metrics.json
 
+scibert_metrics:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/scibert_metrics.json
+
+scibert_metrics_gpu:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/scibert_metrics.json
+
+safeaero_metrics:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/scibert_metrics.json
+
+safeaero_metrics_gpu:
+  type: tracking.MetricsDataSet
+  filepath: data/09_tracking/scibert_metrics.json
+
+# DATA
 test_data_int:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/test_data_int.parquet
@@ -26,24 +45,60 @@ train_data_prm:
   type: pandas.ParquetDataset
   filepath: data/03_primary/train_data_prm.parquet
 
-test_cleaned_fea:
+test_cleaned_fea: # VERSIONNED IN MLFLOW
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
         type: pandas.ParquetDataset
         filepath: data/04_feature/test_cleaned_fea.parquet
 
-train_cleaned_fea:
+train_cleaned_fea: # VERSIONNED IN MLFLOW
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
         type: pandas.ParquetDataset
         filepath: data/04_feature/train_cleaned_fea.parquet
 
+# MODELS
 bertmodel:
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
         type: kedro_mlflow.io.models.MlflowModelSaverDataSet
         flavor: mlflow.pytorch
         filepath: data/06_models/bertmodel
+
+bertmodelgpu:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/bertmodel
+
+scibertmodel:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/scibertmodel
+
+scibertmodelgpu:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/scibertmodel
+
+safeaeromodel:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/scibertmodel
+
+safeaeromodelgpu:
+    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
+    data_set:
+        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
+        flavor: mlflow.pytorch
+        filepath: data/06_models/scibertmodel
 
 #bertmetrics:
 #    type: kedro_mlflow.io.metrics.MlflowMetricDataSet

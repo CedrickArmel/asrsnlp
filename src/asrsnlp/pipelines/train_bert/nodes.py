@@ -2,16 +2,14 @@
 This is a boilerplate pipeline 'train_bert'
 generated using Kedro 0.18.14
 """
+from typing import Union
 from sklearn import metrics
 from torch import nn, cuda
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 from transformers import AutoTokenizer, AutoModel
 from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
-from kedro_mlflow.io.artifacts import MlflowArtifactDataSet
 from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
-from typing import Union
 import mlflow
-import random
 import os
 import logging
 import torch
@@ -98,6 +96,8 @@ class ModelClass(torch.nn.Module):
         self.ratio = dropoutratio
         self.ll = lastlayer
         self.l1 = AutoModel.from_pretrained(self.name)
+        for param in self.l1.parameters():
+            param.requires_grad = False
         self.l2 = nn.Dropout(self.ratio)  # 0.3
         self.l3 = nn.Linear(self.ll[0], self.ll[1])  # 768, 14
 
@@ -149,7 +149,7 @@ def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
     Args:
         data (pd.DataFrame): Data to load for training
         tokenizer (hf.AutoTokenizer): Model tokenizer
-        max_len (int): Number of tokens to pass to the model. Sentences of higher token 
+        max_len (int): Number of tokens to pass to the model. Sentences of higher token
         number are cut.
         trainparams (dict): Should contain batch_size, shuffle, num_workers
         sample (float, optional): Size of the subset to load. Defaults to 1.0
@@ -176,16 +176,24 @@ def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
 def get_cuda_device():
     """return the device available
     """
-    device = 'cuda' if cuda.is_available() else 'cpu'
-    if device == 'cuda':
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+    if 'cuda' in str(device).lower():
         torch.cuda.empty_cache()
+        os.environ['PJRT_DEVICE'] = 'GPU'
+    else:
+        os.environ['PJRT_DEVICE'] = 'CPU'
     return device
 
 
 def get_xla_device():
     """return available XLA device
     """
-    return xm.xla_device()
+    device = xm.xla_device()
+    if 'CPU' in str(xm.xla_real_devices(devices=[device])):
+        os.environ['PJRT_DEVICE'] = 'CPU'
+    if 'TPU' in str(xm.xla_real_devices(devices=[device])):
+        os.environ['PJRT_DEVICE'] = 'TPU'
+    return device
 
 
 def get_loss():
@@ -199,104 +207,139 @@ def get_optimizer(mymodel, learningrate: float):
     return torch.optim.Adam(params=mymodel.parameters(), lr=learningrate)
 
 
-def train_model(**kwargs):
-    """Train de model.
-    kwargs:
-        Args:
-            mymodel (_type_): _description_
-            loss_func (_type_): _description_
-            optimizer (_type_): _description_
-            epochs (int): _description_
-            dataloader (_type_): _description_
-            device (_type_): _description_        
+def train_func(model: ModelClass,
+               loss_func: nn.Module,
+               optimizer: nn.Module,
+               dataloader: DataLoader,
+               device):
+    """Trains the model.
+
+    Args:
+        model (ModelClass): The model instance to train.
+        loss_func (nn.Module): The loss function to optimize.
+        optimizer (nn.Module): The optimization algorithm.
+        dataloader (DataLoader): PyTorch DataLoader instance.
+        device (_type_): The device to use for computations. See PyTorch methods to\n
+        detect your device.
 
     Returns:
-        _type_: _description_
+        Loss value of the trainning step.
     """
+    model.train()
+    for _, data in enumerate(dataloader, 0):
+        ids = data['ids'].to(device, dtype=torch.long)
+        mask = data['mask'].to(device, dtype=torch.long)
+        token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
+        targets = data['targets'].to(device, dtype=torch.float)
+        outputs = model(ids, mask, token_type_ids)
+        loss = loss_func(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+    return loss.item()
+
+
+def eval_func(model: ModelClass,
+              dataloader: DataLoader,
+              device):
+    """Evaluate the model.
+
+    Args:
+        model (ModelClass): The model instance to train.
+        dataloader (DataLoader): PyTorch DataLoader instance.
+        device (_type_): The device to use for computations. See PyTorch methods to\n
+        detect your device.
+
+    Returns:
+        Evaluation metrics
+    """
+    model.eval()
+    fin_targets = []
+    fin_outputs = []
+    with torch.no_grad():
+        for _, data in enumerate(dataloader, 0):
+            ids = data['ids'].to(device, dtype=torch.long)
+            mask = data['mask'].to(device, dtype=torch.long)
+            token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
+            targets = data['targets'].to(device, dtype=torch.float)
+            outputs = model(ids, mask, token_type_ids)
+            fin_targets.extend(targets.cpu().detach().numpy().tolist())
+            fin_outputs.extend(torch.sigmoid(outputs).cpu()
+                               .detach().numpy().tolist())
+    fin_outputs = (np.array(fin_outputs) >= 0.5).tolist()
+    acc = metrics.accuracy_score(fin_targets, fin_outputs)
+    f1_mic = metrics.f1_score(fin_targets, fin_outputs, average='micro')
+    f1_mac = metrics.f1_score(fin_targets, fin_outputs, average='macro')
+    return acc, f1_mic, f1_mac
+
+
+def train_model(**kwargs):
+    """Train the model (Trainning + Evaluation).
+    kwargs:
+        Args:
+            model (Callable): The model instance to train.
+            loss_func (Callable): The loss function to optimize.
+            optimizer (Callable): The optimization algorithm.
+            epochs (int): # epochs to train the model through.
+            traindataloader (DataLoader): PyTorch DataLoader instance of your trainset.
+            testdataloader (DataLoader): PyTorch DataLoader instance of your testset.
+            device(_type_): The device to train your model on. See PyTorch methods to\n
+            detect your device.
+    """
+    logger = logging.getLogger(__name__)
     for name, item in kwargs.items():
-        if "loss" in name.lower():
-            loss_func = item
-        if "optim" in name.lower():
+        if "loss" in str(type(item).__mro__).lower():
+            loss_fn = item
+        if "optim" in str(type(item).__mro__).lower():
             optimizer = item
         if "epoch" in name.lower():
             epochs = item
         if "device" in name.lower():
             device = item
-        if isinstance(item, DataLoader):
-            dataloader = item
-        if isinstance(item, torch.nn.Module) and "loss" not in name.lower():
+        if isinstance(item, DataLoader) and "eval" in name.lower():
+            evaldataloader = item
+        if isinstance(item, DataLoader) and "train" in name.lower():
+            traindataloader = item
+        if isinstance(item, ModelClass):
             modelname = name + "model"
             model = item
     modelsaver = MlflowModelSaverDataSet(filepath=os.path.join("data/06_models",
                                                                modelname),
                                          flavor='mlflow.pytorch')
-    epochhistory = MlflowMetricHistoryDataSet(key="epochs_loss",
+    modellogger = MlflowModelLoggerDataSet(flavor='mlflow.pytorch')
+    losshistory = MlflowMetricHistoryDataSet(key="loss",
+                                             save_args={"mode": "list"})
+    acchistory = MlflowMetricHistoryDataSet(key="accuracy",
+                                            save_args={"mode": "list"})
+    f1michistory = MlflowMetricHistoryDataSet(key="f1_micro",
+                                              save_args={"mode": "list"})
+    f1machistory = MlflowMetricHistoryDataSet(key="f1_macro",
                                               save_args={"mode": "list"})
     model.to(device)
+    lossvalues = []
+    accvalues = []
+    f1microvalues = []
+    f1macrovalues = []
     epoch = 1
-    losshistory = {}
     while epoch <= epochs:
+        logger.info("Starting epoch %s...", epoch)
         with mlflow.start_run(nested=True,
                               run_name=f"epoch_{epoch}"):
-            model.train()
-            for _, data in enumerate(dataloader, 0):
-                ids = data['ids'].to(device, dtype=torch.long)
-                mask = data['mask'].to(device, dtype=torch.long)
-                token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
-                targets = data['targets'].to(device, dtype=torch.float)
-                outputs = model(ids, mask, token_type_ids)
-                optimizer.zero_grad()
-                loss = loss_func(outputs, targets)
-                losshistory[f"epoch_{epoch}"] = loss.item()
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            loss = train_func(model=model,
+                              loss_func=loss_fn,
+                              optimizer=optimizer,
+                              dataloader=traindataloader,
+                              device=device)
+            acc, f1mic, f1mac = eval_func(model, evaldataloader, device)
+            lossvalues.append(loss)
+            accvalues.append(acc)
+            f1microvalues.append(f1mic)
+            f1macrovalues.append(f1mac)
             modelsaver.save(model)
-#           Ajouter ici le mlflow model logger
+            modellogger.save(model)
         epoch += 1
-    epochhistory.save(losshistory.values())
-    return model, {modelname: {"loss": losshistory}}
-
-
-def eval_pt_model(**kwargs):
-    """Evaluate the model.
-    kwargs:
-        Args:
-            mymodel (_type_): _description_
-            testingloader (_type_): _description_
-            device (_type_): _description_
-    Returns:
-        _type_: _description_
-    """
-    for name, item in kwargs.items():
-        if isinstance(item, torch.nn.Module):
-            model = item
-            modelname = name
-        if isinstance(item, DataLoader):
-            dataloader = item
-        if "device" in name.lower():
-            device = item
-    model.to(device)
-    model.eval()
-    fin_targets = []
-    fin_outputs = []
-    with mlflow.start_run(nested=True,
-                          run_name=f"eval_{modelname}"):
-        with torch.no_grad():
-            for _, data in enumerate(dataloader, 0):
-                ids = data['ids'].to(device, dtype=torch.long)
-                mask = data['mask'].to(device, dtype=torch.long)
-                token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
-                targets = data['targets'].to(device, dtype=torch.float)
-                outputs = model(ids, mask, token_type_ids)
-                fin_targets.extend(targets.cpu().detach().numpy().tolist())
-                fin_outputs.extend(torch.sigmoid(outputs).cpu()
-                                   .detach().numpy().tolist())
-        fin_outputs = np.array(fin_outputs) >= 0.5
-        acc = metrics.accuracy_score(fin_targets, outputs)
-        f1_mic = metrics.f1_score(targets, outputs, average='micro')
-        f1_mac = metrics.f1_score(targets, outputs, average='macro')
-        evalres = dict(accuracy=acc,
-                       f1_score_micro=f1_mic,
-                       f1_score_macro=f1_mac)
-    return evalres
+    losshistory.save(lossvalues)
+    acchistory.save(accvalues)
+    f1michistory.save(f1microvalues)
+    f1machistory.save(f1macrovalues)
+    return model, {'loss': loss, 'accuracy': acc, 'f1_micro': f1mic, 'f1_macro': f1mac}

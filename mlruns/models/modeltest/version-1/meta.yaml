@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1701219552952
+current_stage: None
+description: ''
+last_updated_timestamp: 1701219552952
+name: modeltest
+run_id: b81eb7601387461e97c29c7626c348ee
+run_link: ''
+source: gs://ml-project-bucket-20231126/asrsnlp/mlruns/706637758129773331/b81eb7601387461e97c29c7626c348ee/artifacts/bertmodel
+status: READY
+status_message: null
+storage_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/706637758129773331/b81eb7601387461e97c29c7626c348ee/artifacts/bertmodel
+user_id: null
+version: 1
