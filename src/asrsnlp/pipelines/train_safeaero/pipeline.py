@@ -36,7 +36,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                                   "params:safeaero_params.learningrate"],
                           outputs="safeaerooptimizer_xla",
                           name="optimizer_for_safeaero_xla_trainning"),
-                     node(func=nodes.get_cuda_device,
+                     node(func=nodes.get_xla_device,
                           inputs=None,
                           outputs="safeaerodevice_xla",
                           name="get_supported_device_for_safeaero_xla_trainning"),

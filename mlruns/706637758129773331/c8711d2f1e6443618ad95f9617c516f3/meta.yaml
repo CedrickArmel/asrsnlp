@@ -1,0 +1,15 @@
+artifact_uri: gs://ml-project-bucket-20231126/asrsnlp/mlruns/706637758129773331/c8711d2f1e6443618ad95f9617c516f3/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '706637758129773331'
+lifecycle_stage: active
+run_id: c8711d2f1e6443618ad95f9617c516f3
+run_name: epoch_1
+run_uuid: c8711d2f1e6443618ad95f9617c516f3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1701275639969
+status: 1
+tags: []
+user_id: ensai

@@ -36,7 +36,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                                   "params:bert_params.learningrate"],
                           outputs="bertoptimizer_xla",
                           name="optimizer_for_bert_xla_trainning"),
-                     node(func=nodes.get_cuda_device,
+                     node(func=nodes.get_xla_device,
                           inputs=None,
                           outputs="bertdevice_xla",
                           name="get_supported_device_for_bert_xla_trainning"),

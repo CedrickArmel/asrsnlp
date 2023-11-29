@@ -1,0 +1,15 @@
+artifact_uri: gs://ml-project-bucket-20231126/asrsnlp/mlruns/706637758129773331/b21024707d55431ebf2e34ada1cb0fc4/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '706637758129773331'
+lifecycle_stage: active
+run_id: b21024707d55431ebf2e34ada1cb0fc4
+run_name: train_safeaero_gpu
+run_uuid: b21024707d55431ebf2e34ada1cb0fc4
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1701288808490
+status: 1
+tags: []
+user_id: ensai

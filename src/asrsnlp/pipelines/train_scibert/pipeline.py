@@ -36,7 +36,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                                   "params:scibert_params.learningrate"],
                           outputs="scibertoptimizer_xla",
                           name="optimizer_for_scibert_xla_trainning"),
-                     node(func=nodes.get_cuda_device,
+                     node(func=nodes.get_xla_device,
                           inputs=None,
                           outputs="scibertdevice_xla",
                           name="get_supported_device_for_scibert_xla_trainning"),

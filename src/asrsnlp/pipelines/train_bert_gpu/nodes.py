@@ -16,6 +16,7 @@ import torch
 import pandas as pd
 import transformers as hf
 import numpy as np
+import torch_xla
 import torch_xla.core.xla_model as xm
 
 
@@ -176,16 +177,24 @@ def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
 def get_cuda_device():
     """return the device available
     """
-    device = 'cuda' if cuda.is_available() else 'cpu'
-    if device == 'cuda':
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+    if 'cuda' in str(device).lower():
         torch.cuda.empty_cache()
+        os.environ['PJRT_DEVICE'] = 'GPU'
+    else:
+        os.environ['PJRT_DEVICE'] = 'CPU'
     return device
 
 
 def get_xla_device():
     """return available XLA device
     """
-    return xm.xla_device()
+    device = xm.xla_device()
+    if 'CPU' in str(xm.xla_real_devices(devices=[device])):
+        os.environ['PJRT_DEVICE'] = 'CPU'
+    if 'TPU' in str(xm.xla_real_devices(devices=[device])):
+        os.environ['PJRT_DEVICE'] = 'TPU'
+    return device
 
 
 def get_loss():
