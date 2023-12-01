@@ -3,6 +3,10 @@
 # Documentation for this file format can be found in "Parameters"
 # Link: https://docs.kedro.org/en/0.18.14/configuration/parameters.html
 
+# CLASS UNBALANCE
+pos_weight: [2.3448, 4.1440, 10.2511, 10.3440, 11.3869, 20.9813, 22.5692, 25.5776,
+26.3028, 36.1772, 47.8253, 74.3887, 89.4944, 413.2378, 78.5053]
+
 # FEATURE ENGINEERING
 sub: ['Narrative','Synopsis','Anomaly']
 target: 'Anomaly'
