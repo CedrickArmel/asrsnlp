@@ -19,6 +19,8 @@ libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-d
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+echo 'export GOOGLE_APPLICATION_CREDENTIALS="$HOME/asrsnlp/conf/local/ml-project-401610-e04a8a987255.json"' >> ~/.bashrc
+echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
 
 # Reload bash to apply changes
 source $HOME/.bashrc
@@ -29,5 +31,7 @@ pyenv install 3.10.12
 # Create and set up a virtual environment named "asrsnlp" using Python 3.10.12
 pyenv virtualenv 3.10.12 asrsnlp
 pyenv local asrsnlp
+
+mlflow server --default-artifact-root gs://ml-project-bucket-20231126/asrsnlp/mlruns --backend-store-uri /home/ensai/dev/asrsnlp/mlruns --host localhost
 
 echo "Setup completed. Now you can start working on the 'asrsnlp-safrantech' project."

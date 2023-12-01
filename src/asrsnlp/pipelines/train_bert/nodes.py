@@ -173,32 +173,29 @@ def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
     return loadeddata
 
 
-def get_cuda_device():
-    """return the device available
-    """
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
-    if 'cuda' in str(device).lower():
-        torch.cuda.empty_cache()
-        os.environ['PJRT_DEVICE'] = 'GPU'
-    else:
-        os.environ['PJRT_DEVICE'] = 'CPU'
-    return device
-
-
-def get_xla_device():
-    """return available XLA device
+def get_device():
+    """return available device
     """
     device = xm.xla_device()
-    if 'CPU' in str(xm.xla_real_devices(devices=[device])):
-        os.environ['PJRT_DEVICE'] = 'CPU'
-    if 'TPU' in str(xm.xla_real_devices(devices=[device])):
-        os.environ['PJRT_DEVICE'] = 'TPU'
+    if 'TPU' not in str(xm.xla_real_devices(devices=[device])):
+        if torch.cuda.is_available() :
+            device = torch.device('cuda')
+            try:
+                _ = torch.tensor([1, 2]).to(device) + torch.tensor([1, 2]).to(device)
+            except RuntimeError:
+                device = torch.device('cuda:0')
+            torch.cuda.empty_cache()
+            os.environ['PJRT_DEVICE'] = 'GPU'
     return device
 
 
-def get_loss():
+def get_loss(pos_weight: list[float] = None):
     """Retuns the loss function"""
-    return torch.nn.BCEWithLogitsLoss()
+    if pos_weight is None:
+        loss = torch.nn.BCEWithLogitsLoss()
+    else:
+        loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
+    return loss
 
 
 def get_optimizer(mymodel, learningrate: float):

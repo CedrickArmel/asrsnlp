@@ -8,23 +8,11 @@ bert_metrics:
   type: tracking.MetricsDataSet
   filepath: data/09_tracking/bert_metrics.json
 
-bert_metrics_gpu:
-  type: tracking.MetricsDataSet
-  filepath: data/09_tracking/bert_metrics.json
-
 scibert_metrics:
   type: tracking.MetricsDataSet
   filepath: data/09_tracking/scibert_metrics.json
 
-scibert_metrics_gpu:
-  type: tracking.MetricsDataSet
-  filepath: data/09_tracking/scibert_metrics.json
-
 safeaero_metrics:
-  type: tracking.MetricsDataSet
-  filepath: data/09_tracking/scibert_metrics.json
-
-safeaero_metrics_gpu:
   type: tracking.MetricsDataSet
   filepath: data/09_tracking/scibert_metrics.json
 
@@ -65,13 +53,6 @@ bertmodel:
         flavor: mlflow.pytorch
         filepath: data/06_models/bertmodel
 
-bertmodelgpu:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.pytorch
-        filepath: data/06_models/bertmodel
-
 scibertmodel:
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
@@ -79,21 +60,7 @@ scibertmodel:
         flavor: mlflow.pytorch
         filepath: data/06_models/scibertmodel
 
-scibertmodelgpu:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.pytorch
-        filepath: data/06_models/scibertmodel
-
 safeaeromodel:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.pytorch
-        filepath: data/06_models/scibertmodel
-
-safeaeromodelgpu:
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
         type: kedro_mlflow.io.models.MlflowModelSaverDataSet
