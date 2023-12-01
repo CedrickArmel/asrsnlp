@@ -108,6 +108,7 @@ kedro-viz==6.6.1
 kiwisolver==1.4.5
 lazy_loader==0.3
 libtpu-nightly==0.1.dev20230825+default
+--find-links https://storage.googleapis.com/libtpu-releases/index.html
 Mako==1.3.0
 Markdown==3.5.1
 markdown-it-py==3.0.0

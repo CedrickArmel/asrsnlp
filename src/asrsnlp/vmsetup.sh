@@ -17,17 +17,14 @@ libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-d
 
 # Configure environment variables in the user's bashrc
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init --path)"' >> ~/.bashrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
 # Reload bash to apply changes
-source ~/.bashrc
+source $HOME/.bashrc
 
 # Install Python version 3.10.12 using Pyenv
 pyenv install 3.10.12
-
-# Change the working directory to "asrsnlp-safrantech"
-cd asrsnlp-safrantech
 
 # Create and set up a virtual environment named "asrsnlp" using Python 3.10.12
 pyenv virtualenv 3.10.12 asrsnlp
