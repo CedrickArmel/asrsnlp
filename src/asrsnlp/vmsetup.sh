@@ -26,9 +26,6 @@ source ~/.bashrc
 # Install Python version 3.10.12 using Pyenv
 pyenv install 3.10.12
 
-# Clone the "asrsnlp-safrantech" repository from GitHub
-git clone git@github.com:CedrickArmel/asrsnlp-safrantech.git
-
 # Change the working directory to "asrsnlp-safrantech"
 cd asrsnlp-safrantech
 
