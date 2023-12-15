@@ -1,14 +1,14 @@
 """
-This is a boilerplate pipeline 'train_bert'
+This is a boilerplate pipeline 'train'
 generated using Kedro 0.18.14
 """
 from typing import Union
 from sklearn import metrics
-from torch import nn, cuda
-from kornia.losses import FocalLoss, BinaryFocalLossWithLogits
+from torch import nn
+from kornia.losses import BinaryFocalLossWithLogits
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 from transformers import AutoTokenizer, AutoModel
-from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet, MlflowMetricsDataSet
+from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
 from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
 import mlflow
 import os

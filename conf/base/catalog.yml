@@ -4,17 +4,9 @@
 # Link: https://docs.kedro.org/en/stable/data/data_catalog.html
 
 # METRICS TRACKING
-bert_metrics:
+metrics:
   type: tracking.MetricsDataSet
-  filepath: data/09_tracking/bert_metrics.json
-
-scibert_metrics:
-  type: tracking.MetricsDataSet
-  filepath: data/09_tracking/scibert_metrics.json
-
-safeaero_metrics:
-  type: tracking.MetricsDataSet
-  filepath: data/09_tracking/scibert_metrics.json
+  filepath: data/09_tracking/metrics.json
 
 # DATA
 test_data_int:
@@ -46,26 +38,12 @@ train_cleaned_fea: # VERSIONNED IN MLFLOW
         filepath: data/04_feature/train_cleaned_fea.parquet
 
 # MODELS
-bertmodel:
+modelartefact:
     type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
     data_set:
         type: kedro_mlflow.io.models.MlflowModelSaverDataSet
         flavor: mlflow.pytorch
-        filepath: data/06_models/bertmodel
-
-scibertmodel:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.pytorch
-        filepath: data/06_models/scibertmodel
-
-safeaeromodel:
-    type: kedro_mlflow.io.artifacts.MlflowArtifactDataSet
-    data_set:
-        type: kedro_mlflow.io.models.MlflowModelSaverDataSet
-        flavor: mlflow.pytorch
-        filepath: data/06_models/scibertmodel
+        filepath: data/06_models/model
 
 #bertmetrics:
 #    type: kedro_mlflow.io.metrics.MlflowMetricDataSet
