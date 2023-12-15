@@ -1,0 +1,15 @@
+artifact_uri: gs://ml-project-bucket-20231126/asrsnlp/mlruns/706637758129773331/6ff27c3ee69346d0882b44d7f9e513fc/artifacts
+end_time: 1701453369002
+entry_point_name: ''
+experiment_id: '706637758129773331'
+lifecycle_stage: active
+run_id: 6ff27c3ee69346d0882b44d7f9e513fc
+run_name: train_bert
+run_uuid: 6ff27c3ee69346d0882b44d7f9e513fc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1701453122999
+status: 3
+tags: []
+user_id: ensai

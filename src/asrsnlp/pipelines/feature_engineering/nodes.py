@@ -35,7 +35,7 @@ def encode_cell(cell: pd.Series, labels: list) -> pd.Series:
         equal to number of element in labels.
     """
     cell_anomalies = [item.strip() for item in cell.split(';')]
-    splited_cell_anomalies = {label: any(item.startswith(labels)
+    splited_cell_anomalies = {label: any(item.startswith(label)
                                          for item in cell_anomalies)
                               for label in labels}
     splited_cell_anomalies['Other'] = not any(splited_cell_anomalies.values())
