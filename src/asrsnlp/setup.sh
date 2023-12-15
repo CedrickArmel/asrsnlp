@@ -22,7 +22,7 @@ setup() {
     # Start mlflow server
     mlflow server --default-artifact-root gs://ml-project-bucket-20231126/$project/mlruns --backend-store-uri $basepath/$project/mlruns --host localhost
 
-    echo "Setup completed. Now you can start working on the '$project' project."
+    echo "Setup completed. Now you can start working on the $project project. $python"
 }
 
 # Main script logic
