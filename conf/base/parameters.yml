@@ -4,8 +4,8 @@
 # Link: https://docs.kedro.org/en/0.18.14/configuration/parameters.html
 
 # CLASS UNBALANCE
-pos_weight: [2.3448, 4.1440, 10.2511, 10.3440, 11.3869, 20.9813, 22.5692, 25.5776,
-26.3028, 36.1772, 47.8253, 74.3887, 89.4944, 413.2378, 78.5053]
+pos_weight: [0.6625, 1.5568, 4.5923, 4.6385, 5.1568, 9.9256, 10.7149, 12.2102,  12.5707,
+17.4787, 23.2683, 36.4714, 43.9796, 204.8938, 38.5175]
 
 # FEATURE ENGINEERING
 sub: ['Narrative','Synopsis','Anomaly']
