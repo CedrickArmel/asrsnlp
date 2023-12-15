@@ -21,7 +21,7 @@ def mapping(inputs: list[str]) -> dict[str, str]:
 
 def create_pipeline(**kwargs) -> Pipeline:
     """Returns the pipeline"""
-    return pipeline([node(func=nodes.get_loss,
+    return pipeline([node(func=nodes.get_focal_loss,
                           inputs=None,
                           outputs="bertloss",
                           name="loss_function_for_bert_trainning"),

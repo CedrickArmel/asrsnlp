@@ -5,9 +5,10 @@ generated using Kedro 0.18.14
 from typing import Union
 from sklearn import metrics
 from torch import nn, cuda
+from kornia.losses import FocalLoss, BinaryFocalLossWithLogits
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 from transformers import AutoTokenizer, AutoModel
-from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
+from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet, MlflowMetricsDataSet
 from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
 import mlflow
 import os
@@ -198,6 +199,20 @@ def get_loss(pos_weight: list[float] = None):
     return loss
 
 
+def get_focal_loss(pos_weight: list[float] | None = None,
+                   alpha: float = 1, gamma: float = 0.5,
+                   reduction: str = 'mean'):
+    """Retuns the loss function"""
+    if pos_weight is None:
+        loss = BinaryFocalLossWithLogits(alpha=alpha, gamma=gamma,
+                                         reduction=reduction)
+    else:
+        loss = BinaryFocalLossWithLogits(pos_weight=torch.tensor(pos_weight),
+                                         gamma=gamma, alpha=alpha,
+                                         reduction=reduction)
+    return loss
+
+
 def get_optimizer(mymodel, learningrate: float):
     """Returns the Adam optimizer for the model
     """
@@ -265,9 +280,14 @@ def eval_func(model: ModelClass,
                                .detach().numpy().tolist())
     fin_outputs = (np.array(fin_outputs) >= 0.5).tolist()
     acc = metrics.accuracy_score(fin_targets, fin_outputs)
-    f1_mic = metrics.f1_score(fin_targets, fin_outputs, average='micro')
-    f1_mac = metrics.f1_score(fin_targets, fin_outputs, average='macro')
-    return acc, f1_mic, f1_mac
+    f1_mic = metrics.f1_score(fin_targets, fin_outputs,
+                              average='micro', zero_division=1)
+    f1_mac = metrics.f1_score(fin_targets, fin_outputs,
+                              average='macro', zero_division=1)
+    f1_by_class = metrics.f1_score(fin_targets, fin_outputs,
+                                   average=None, zero_division=1)
+
+    return acc, f1_mic, f1_mac, f1_by_class
 
 
 def train_model(**kwargs):
@@ -312,6 +332,7 @@ def train_model(**kwargs):
                                               save_args={"mode": "list"})
     f1machistory = MlflowMetricHistoryDataSet(key="f1_macro",
                                               save_args={"mode": "list"})
+    f1classhistory = MlflowMetricsDataSet()
     model.to(device)
     lossvalues = []
     accvalues = []
@@ -327,7 +348,9 @@ def train_model(**kwargs):
                               optimizer=optimizer,
                               dataloader=traindataloader,
                               device=device)
-            acc, f1mic, f1mac = eval_func(model, evaldataloader, device)
+            acc, f1mic, f1mac, f1byclass = eval_func(model, evaldataloader, device)
+            mlflow.log_metrics(dict(zip([f"class_{i}" for i in range(len(f1byclass))],
+                                        f1byclass)))
             lossvalues.append(loss)
             accvalues.append(acc)
             f1microvalues.append(f1mic)
@@ -339,4 +362,6 @@ def train_model(**kwargs):
     acchistory.save(accvalues)
     f1michistory.save(f1microvalues)
     f1machistory.save(f1macrovalues)
+    mlflow.log_metrics(dict(zip([f"class_{i}" for i in range(len(f1byclass))],
+                                f1byclass)))
     return model, {'loss': loss, 'accuracy': acc, 'f1_micro': f1mic, 'f1_macro': f1mac}
