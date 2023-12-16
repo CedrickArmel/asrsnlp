@@ -1,6 +1,7 @@
 artifact_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/424429731614454219
 creation_time: 1702693884564
 experiment_id: '424429731614454219'
-last_update_time: 1702693884564
-lifecycle_stage: active
+last_update_time: 1702696626159
+lifecycle_stage: deleted
 name: asrsnlp
+tags: {}
