@@ -1,0 +1,6 @@
+artifact_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/558690284183157233
+creation_time: 1702696503558
+experiment_id: '558690284183157233'
+last_update_time: 1702696503558
+lifecycle_stage: active
+name: bert-unfrozen
