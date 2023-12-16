@@ -350,6 +350,8 @@ def train_model(**kwargs):
                                               save_args={"mode": "list"})
     f1machistory = MlflowMetricHistoryDataSet(key="f1_macro",
                                               save_args={"mode": "list"})
+    f1byclasshistory = MlflowMetricHistoryDataSet(key="f1_by_class",
+                                                  save_args={"mode": "list"})
     model.to(device)
     lossvalues = []
     accvalues = []
@@ -366,8 +368,7 @@ def train_model(**kwargs):
                               dataloader=traindataloader,
                               device=device)
             acc, f1mic, f1mac, f1byclass = eval_func(model, evaldataloader, device)
-            mlflow.log_metrics(dict(zip([f"class_{i}" for i in range(len(f1byclass))],
-                                        f1byclass)))
+            f1byclasshistory.save(f1byclass.tolist())
             lossvalues.append(loss)
             accvalues.append(acc)
             f1microvalues.append(f1mic)
@@ -379,6 +380,5 @@ def train_model(**kwargs):
     acchistory.save(accvalues)
     f1michistory.save(f1microvalues)
     f1machistory.save(f1macrovalues)
-    mlflow.log_metrics(dict(zip([f"class_{i}" for i in range(len(f1byclass))],
-                                f1byclass)))
+    f1byclasshistory.save(f1byclass.tolist())
     return model, {'loss': loss, 'accuracy': acc, 'f1_micro': f1mic, 'f1_macro': f1mac}
