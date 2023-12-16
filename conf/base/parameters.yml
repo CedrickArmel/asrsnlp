@@ -4,8 +4,8 @@
 # Link: https://docs.kedro.org/en/0.18.14/configuration/parameters.html
 
 # CLASS UNBALANCE
-pos_weight: [2.3448, 4.1440, 10.2511, 10.3440, 11.3869, 20.9813, 22.5692, 25.5776,
-26.3028, 36.1772, 47.8253, 74.3887, 89.4944, 413.2378, 78.5053]
+pos_weight: [0.6625, 1.5568, 4.5923, 4.6385, 5.1568, 9.9256, 10.7149, 12.2102,  12.5707,
+17.4787, 23.2683, 36.4714, 43.9796, 204.8938, 38.5175]
 
 # FEATURE ENGINEERING
 sub: ['Narrative','Synopsis','Anomaly']
@@ -25,82 +25,27 @@ labels: ['Deviation / Discrepancy - Procedural',
 'Ground Excursion',
 'No Specific Anomaly Occurred']
 
-# BERT MODELS
-berttrain_params:
+# MODELS
+train_params:
   batch_size: 8
   shuffle: True
   num_workers: 8
 
-berteval_params:
+samples:
+  eval: 0.0001
+  train: 0.0001
+
+eval_params:
   batch_size: 4
   shuffle: True
   num_workers: 8
 
-berteval_sample:
-  datasize: 0.0001
-
-berttrain_sample:
-  datasize: 0.0001
-
-bert_params:
-  name: bert-base-uncased
+model_params:
+  name: allenai/scibert_scivocab_uncased # allenai/scibert_scivocab_uncased  NASA-AIML/MIKA_SafeAeroBERT bert-base-uncased
   llayer:
     - 768
     - 15
-  doratio: 0.3
-  max_len: 200
-  learningrate: 10e-5
-  epochs: 1
-
-# SCIBERT MODELS
-sciberttrain_params:
-  batch_size: 8
-  shuffle: True
-  num_workers: 8
-
-sciberteval_params:
-  batch_size: 4
-  shuffle: True
-  num_workers: 8
-
-sciberteval_sample:
-  datasize: 0.0001
-
-sciberttrain_sample:
-  datasize: 0.0001
-
-scibert_params:
-  name: allenai/scibert_scivocab_uncased
-  llayer:
-    - 768
-    - 15
-  doratio: 0.3
-  max_len: 200
-  learningrate: 10e-5
-  epochs: 1
-
-# SAFEAEROBERT MODELS
-safeaerotrain_params:
-  batch_size: 8
-  shuffle: True
-  num_workers: 8
-
-safeaeroeval_params:
-  batch_size: 4
-  shuffle: True
-  num_workers: 8
-
-safeaeroeval_sample:
-  datasize: 0.0001
-
-safeaerotrain_sample:
-  datasize: 0.0001
-
-safeaero_params:
-  name: NASA-AIML/MIKA_SafeAeroBERT
-  llayer:
-    - 768
-    - 15
+  unfroze: 4
   doratio: 0.3
   max_len: 200
   learningrate: 10e-5
