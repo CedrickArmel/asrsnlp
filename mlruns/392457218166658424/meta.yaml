@@ -1,0 +1,6 @@
+artifact_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/392457218166658424
+creation_time: 1702696869229
+experiment_id: '392457218166658424'
+last_update_time: 1702696869229
+lifecycle_stage: active
+name: safeaero-unfrozen
