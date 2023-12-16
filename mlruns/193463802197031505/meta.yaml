@@ -1,0 +1,6 @@
+artifact_location: gs://ml-project-bucket-20231126/asrsnlp/mlruns/193463802197031505
+creation_time: 1702698419805
+experiment_id: '193463802197031505'
+last_update_time: 1702698419805
+lifecycle_stage: active
+name: scibert-unfrozen
