@@ -190,13 +190,17 @@ def get_device():
     device = xm.xla_device()
     if 'TPU' not in str(xm.xla_real_devices(devices=[device])):
         if torch.cuda.is_available() :
+            torch.cuda.empty_cache()
+            os.environ['PJRT_DEVICE'] = 'GPU'
             device = torch.device('cuda')
             try:
                 _ = torch.tensor([1, 2]).to(device) + torch.tensor([1, 2]).to(device)
             except RuntimeError:
                 device = torch.device('cuda:0')
-            torch.cuda.empty_cache()
-            os.environ['PJRT_DEVICE'] = 'GPU'
+                try:
+                    _ = torch.tensor([1, 2]).to(device) + torch.tensor([1, 2]).to(device)
+                except RuntimeError:
+                    device = xm.xla_device()
     return device
 
 
