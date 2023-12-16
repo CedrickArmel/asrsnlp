@@ -41,7 +41,7 @@ eval_params:
   num_workers: 8
 
 model_params:
-  name: NASA-AIML/MIKA_SafeAeroBERT # allenai/scibert_scivocab_uncased  NASA-AIML/MIKA_SafeAeroBERT bert-base-uncased
+  name: bert-base-uncased # allenai/scibert_scivocab_uncased  NASA-AIML/MIKA_SafeAeroBERT bert-base-uncased
   llayer:
     - 768
     - 15
