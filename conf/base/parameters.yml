@@ -27,26 +27,26 @@ labels: ['Deviation / Discrepancy - Procedural',
 
 # MODELS
 train_params:
-  batch_size: 8
+  batch_size: 64
   shuffle: True
-  num_workers: 8
+  num_workers: 25
 
 samples:
-  eval: 0.0001
-  train: 0.0001
+  eval: 1.0
+  train: 1.0
 
 eval_params:
-  batch_size: 4
+  batch_size: 64
   shuffle: True
-  num_workers: 8
+  num_workers: 25
 
 model_params:
-  name: bert-base-uncased # allenai/scibert_scivocab_uncased  NASA-AIML/MIKA_SafeAeroBERT bert-base-uncased
+  name: NASA-AIML/MIKA_SafeAeroBERT # allenai/scibert_scivocab_uncased  NASA-AIML/MIKA_SafeAeroBERT bert-base-uncased
   llayer:
     - 768
     - 15
   unfroze: 4
   doratio: 0.3
   max_len: 200
-  learningrate: 10e-5
-  epochs: 1
+  learningrate: 0.00002
+  epochs: 5
