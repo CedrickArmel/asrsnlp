@@ -261,6 +261,7 @@ def train_func(model: ModelClass,
     """
     model.train()
     for _, data in enumerate(dataloader, 0):
+        optimizer.zero_grad()
         ids = data['ids'].to(device, dtype=torch.long)
         mask = data['mask'].to(device, dtype=torch.long)
         token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
@@ -269,7 +270,7 @@ def train_func(model: ModelClass,
         loss = loss_func(outputs, targets)
         loss.backward()
         optimizer.step()
-        optimizer.zero_grad()
+        xm.mark_step()
     return loss.item()
 
 
