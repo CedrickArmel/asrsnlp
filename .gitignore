@@ -1,4 +1,7 @@
 ##########################
+# LOCAL FILES TO IGNORE
+*_local.ipynb
+
 # KEDRO PROJECT
 
 # ignore confidential resources

@@ -2,28 +2,35 @@
 This is a boilerplate pipeline 'train'
 generated using Kedro 0.18.14
 """
-from typing import Union
-from sklearn import metrics
-from torch import nn
-from kornia.losses import BinaryFocalLossWithLogits
-from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
-from transformers import AutoTokenizer, AutoModel
-from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
-from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
-import mlflow
-import os
 import logging
-import torch
+import os
+from typing import Union, Dict, List
+import numpy as np
+import mlflow
 import pandas as pd
 import transformers as hf
-import numpy as np
 import torch_xla.core.xla_model as xm
+import torch
+from kornia.losses import BinaryFocalLossWithLogits
+from kedro_mlflow.io.metrics import MlflowMetricHistoryDataSet
+from kedro_mlflow.io.models import MlflowModelSaverDataSet, MlflowModelLoggerDataSet
+from sklearn import metrics
+from torch import nn
+from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class CustomDataset(Dataset):
     """PyTorch custom Dataset class. The PyTorch DataLoader will wrap an iterable\n
     around this CustomDataset to enable easy access to the samples.
     """
+
     def __init__(self,
                  dataframe: pd.DataFrame,
                  tokenizer: AutoTokenizer,
@@ -76,85 +83,184 @@ class CustomDataset(Dataset):
         mask = inputs['attention_mask']
         token_type_ids = inputs["token_type_ids"]
         return {
-            'ids': torch.tensor(ids, dtype=torch.long),
-            'mask': torch.tensor(mask, dtype=torch.long),
+            'input_ids': torch.tensor(ids, dtype=torch.long),
+            'attention_mask': torch.tensor(mask, dtype=torch.long),
             'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
             'targets': torch.tensor(self.targets.iloc[index], dtype=torch.float)
         }
 
 
-class ModelClass(torch.nn.Module):
-    """PyTorch neural network model.
+class SequenceClassifierModel(nn.Module):
+    """SequenceClassifier class.\n
+    This class imports the adequate model from HuggingFace with a classification head.
     """
-    def __init__(self, modelname: str,
-                 lastlayer: tuple,
-                 dropoutratio: float,
-                 unfroze: int | None = None,):
-        """ This function is run once when instantiating\n
-        the Dataset object.
-        """
-        super(ModelClass, self).__init__()
-        self.name = modelname
-        self.ratio = dropoutratio
-        self.ll = lastlayer
-        self.unfroze = unfroze
-        self.l1 = AutoModel.from_pretrained(self.name)
-        if self.unfroze is not None:
-            for param in list(self.l1.parameters())[:-self.unfroze] :
-                param.requires_grad = False
-            for param in list(self.l1.pooler.parameters()):
-                param.requires_grad = True
-        self.l2 = nn.Dropout(self.ratio)  # 0.3
-        self.l3 = nn.Linear(self.ll[0], self.ll[1])  # 768, 14
 
-    def forward(self, ids, mask, token_type_ids):
-        """_summary_
+    def __init__(self,
+                 checkpoint: str,
+                 nb_labels: int):
+        """This function is run once when instantiating\n
+        the SequenceClassifierModel Class.
 
         Args:
-            ids (_type_): _description_
-            mask (_type_): _description_
-            token_type_ids (_type_): _description_
+            checkpoint (str): Pretrained model name or path in the Huggingface librairy.
+            nb_labels (int): Number of labels for the classification head.
+        """
+        super(SequenceClassifierModel, self).__init__()
+        self.checkpoint = checkpoint
+        self.nb_labels = nb_labels
+        self.l1 = AutoModelForSequenceClassification.\
+            from_pretrained(self.checkpoint,
+                            num_labels=self.nb_labels)
+
+    def forward(self,
+                data):
+        """Perform forward pass through the model.
+
+        Args:
+            data : Input data dictionary containing IDs, attention masks, \n
+            and token type IDs.
+
+        Returns:
+            torch.Tensor : Logits produced by the model.
+        """
+        ids = data['ids']
+        mask = data['attention_mask']
+        token_type_ids = data['token_type_ids']
+        output = self.l1(ids,
+                         attention_mask=mask,
+                         token_type_ids=token_type_ids,
+                         return_dict=False)
+        logits = output.logits
+        return logits
+
+    def tokenizer(self):
+        """Return the tokenizer associated to the model
 
         Returns:
             _type_: _description_
         """
-        output_1 = self.l1(ids, attention_mask=mask,
-                           token_type_ids=token_type_ids,
-                           return_dict=False)
-        if len(output_1) == 2:
-            output_2 = self.l2(output_1[1])
-        else:
-            output_2 = self.l2(output_1)
-        output = self.l3(output_2)
-        return output
+        return AutoTokenizer.from_pretrained(self.checkpoint)
+
+    def _set_requires_grad(self,
+                           layer: nn.Module,
+                           requires_grad: bool = True):
+        """Activate/deactivate gradient computation for the layer.
+
+        Args:
+            layer (nn.Module): Layer to activate/deactivate
+            requires_grad (bool, optional): Boolean. Defaults to True.
+        """
+        for param in layer.parameters():
+            param.requires_grad = requires_grad
+
+    def _find_and_unfreeze_layers(self,
+                                  module: torch.nn.Module,
+                                  layers: Dict[str, Dict]) -> bool:
+        """Go through the layers of module to find and unfreeze the specified \n
+        layers of interest.
+
+        Args:
+            module (torch.nn.Module): The module those layers should be unfroze.
+            layers (Dict[str, Dict]): Layers to unfreeze in the module
+
+        Returns:
+            bool : Wether at least one of the specified layer were fond.
+        """
+        found = False
+        for group, attr in layers.items():
+            if attr['attr'] is None:
+                if hasattr(module, group):
+                    if isinstance(attr['layers'], str) and (attr['layers'] == 'All'):
+                        layer = getattr(module, group)
+                        self._set_requires_grad(layer)
+                        found = True
+                    elif isinstance(attr['layers'], List):
+                        for lay in attr['layers']:
+                            try:
+                                layer = getattr(getattr(module, group), str(lay))
+                                self._set_requires_grad(layer)
+                                found = True
+                            except AttributeError:
+                                logger.warning(
+                                    "Layer %s not found in %s, so it was ignored.",
+                                    lay,
+                                    group)
+                                continue
+                else:
+                    for child in module.children():
+                        if self._find_and_unfreeze_layers(child, layers):
+                            found = True
+                            break
+            else:
+                if hasattr(module, group) and hasattr(getattr(module, group),
+                                                      attr['attr']):
+                    for lay in attr['layers']:
+                        try:
+                            layer = getattr(
+                                getattr(getattr(module, group), attr['attr']), str(lay))
+                            self._set_requires_grad(layer)
+                            found = True
+                        except AttributeError:
+                            logger.warning(
+                                "Layer %s not found in %s, so it was ignored.",
+                                lay, group)
+                            continue
+                else:
+                    for child in module.children():
+                        if self._find_and_unfreeze_layers(child, layers):
+                            found = True
+                            break
+        return found
+
+    def set_trainable_layers(self,
+                             layers: Dict[str, Dict]):
+        """Set the layers to unfreeze for fine-tuning the model.
+
+        This method allows specifying which layers of the model to unfreeze for \n
+        fine-tuning, facilitating transfer learning scenarios.
+
+        Args:
+            layers (Dict[str, Dict]): A dictionary specifying the layers to unfreeze.\n
+                Each key represents a layer type (e.g., 'encoder') with a \n
+                corresponding dictionary value containing the attribute name holding \n
+                the layers and the list of layers to unfreeze. \n
+                Example: {'encoder': {'attr': 'layer', 'layers': [8, 9, 'dense']}}
+                - 'attr': The attribute containing the layers. 'attr' can be None
+                - 'layers': A list of layer indices or names to unfreeze. \n
+                if not a list must be 'All'.
+        """
+        self._set_requires_grad(self, False)
+        found = self._find_and_unfreeze_layers(self.l1, layers=layers)
+
+        if not found:
+            logger.warning("""None of the provided layers were found.\n
+                           As this method initially freezes all layers before\n
+                           attempting to unfreeze the specified one, all layers\n
+                           are now frozen.""")
+
+    def __getitem__(self, key):
+        return getattr(self, key)
 
 
-# Think about generic later that suport both maskedLM and base
-def import_model(model_name: str,
-                 lastlayer: Union[tuple, list],
-                 doratio: float,
-                 unfroze: int | None = None,):
-    """Returns the models to train form hugging face
+def import_model(checkpoint: str,
+                 nb_labels: int):
+    """Returns the models to train form hugging face.
 
     Args:
-        model_name (str): Model name
-        lastlayer (tuple): Config parameter to set de last layer of the pretrained model
-        doratio (float): Config parameter for the dropout layer before the last layer
-
-    Returns:
-        the model and its tokenizer
+        checkpoint (str): Pretrained model name or path in the Huggingface librairy.
+        nb_labels (int): Number of labels for the classification head.
     """
-    llayer = tuple(lastlayer) if isinstance(lastlayer, list) else lastlayer
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = ModelClass(modelname=model_name,
-                       lastlayer=llayer,
-                       dropoutratio=doratio,
-                       unfroze=unfroze)
+    model = SequenceClassifierModel(checkpoint=checkpoint,
+                                    nb_labels=nb_labels)
+    tokenizer = model.tokenizer()
     return tokenizer, model
 
 
-def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
-           max_len: int, trainparams: dict, sample: float = 1.0):
+def loader(data: pd.DataFrame,
+           tokenizer: hf.AutoTokenizer,
+           max_len: int,
+           trainparams: dict,
+           sample: float = 1.0):
     """Tokenizes and Loads the data in a way suitable for torch and training/evaluation.
 
     Args:
@@ -178,7 +284,7 @@ def loader(data: pd.DataFrame, tokenizer: hf.AutoTokenizer,
         randomsampler = SubsetRandomSampler(subset_idx)
         trainparams['shuffle'] = False
         loadeddata = DataLoader(dataset, **trainparams, sampler=randomsampler)
-    else :
+    else:
         loadeddata = DataLoader(dataset, **trainparams)
 
     return loadeddata
@@ -189,7 +295,7 @@ def get_device():
     """
     device = xm.xla_device()
     if 'TPU' not in str(xm.xla_real_devices(devices=[device])):
-        if torch.cuda.is_available() :
+        if torch.cuda.is_available():
             torch.cuda.empty_cache()
             os.environ['PJRT_DEVICE'] = 'GPU'
             device = torch.device('cuda')
@@ -198,7 +304,8 @@ def get_device():
             except RuntimeError:
                 device = torch.device('cuda:0')
                 try:
-                    _ = torch.tensor([1, 2]).to(device) + torch.tensor([1, 2]).to(device)
+                    _ = torch.tensor([1, 2]).to(device) + \
+                        torch.tensor([1, 2]).to(device)
                 except RuntimeError:
                     device = xm.xla_device()
     return device
@@ -220,7 +327,7 @@ def get_focal_loss(pos_weight: list[float] | None = None,
                                              gamma=gamma,
                                              reduction=reduction,
                                              weight=torch.tensor(weight))
-    else :
+    else:
         if weight is None:
             loss = BinaryFocalLossWithLogits(alpha=alpha,
                                              gamma=gamma,
@@ -235,13 +342,18 @@ def get_focal_loss(pos_weight: list[float] | None = None,
     return loss
 
 
-def get_optimizer(mymodel, learningrate: float):
+def get_optimizer(model: SequenceClassifierModel,
+                  learningrate: float):
     """Returns the Adam optimizer for the model
+
+    Args:
+        model (SequenceClassifierModel): Model
+        learningrate (float): Learning rate
     """
-    return torch.optim.Adam(params=mymodel.parameters(), lr=learningrate)
+    return torch.optim.Adam(params=model.parameters(), lr=learningrate)
 
 
-def train_func(model: ModelClass,
+def train_func(model: SequenceClassifierModel,
                loss_func: nn.Module,
                optimizer: nn.Module,
                dataloader: DataLoader,
@@ -262,11 +374,8 @@ def train_func(model: ModelClass,
     model.train()
     for _, data in enumerate(dataloader, 0):
         optimizer.zero_grad()
-        ids = data['ids'].to(device, dtype=torch.long)
-        mask = data['mask'].to(device, dtype=torch.long)
-        token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
+        outputs = model(data)
         targets = data['targets'].to(device, dtype=torch.float)
-        outputs = model(ids, mask, token_type_ids)
         loss = loss_func(outputs, targets)
         loss.backward()
         optimizer.step()
